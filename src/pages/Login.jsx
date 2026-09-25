@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
-
+import PasswordInput from "../components/PasswordInput";
 import {
   Link,
   useNavigate,
@@ -78,14 +78,13 @@ const Login = () => {
             }
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) =>
-              setPassword(event.target.value)
-            }
-          />
+          <PasswordInput
+  placeholder="Password"
+  value={password}
+  onChange={(event) =>
+    setPassword(event.target.value)
+  }
+/>
 
           {error && (
             <p className="error-message">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
-
+import PasswordInput from "../components/PasswordInput";
 import { auth } from "../firebase/firebase";
 
 const Signup = () => {
@@ -74,42 +74,49 @@ const Signup = () => {
 
         <h1>SignUp</h1>
 
-        <form onSubmit={handleSignup}>
+       <form onSubmit={handleSignup}>
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
+  <input
+    type="email"
+    placeholder="Email"
+    value={email}
+    onChange={(event) =>
+      setEmail(event.target.value)
+    }
+  />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+  <PasswordInput
+    placeholder="Password"
+    value={password}
+    onChange={(event) =>
+      setPassword(event.target.value)
+    }
+  />
 
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChange={(event) =>
-              setConfirmPassword(event.target.value)
-            }
-          />
+  <PasswordInput
+    placeholder="Confirm Password"
+    value={confirmPassword}
+    onChange={(event) =>
+      setConfirmPassword(event.target.value)
+    }
+  />
 
-          {error && (
-            <p className="error-message">
-              {error}
-            </p>
-          )}
+  {error && (
+    <p className="error-message">
+      {error}
+    </p>
+  )}
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Creating account..." : "Sign up"}
-          </button>
+  <button
+    type="submit"
+    disabled={loading}
+  >
+    {loading
+      ? "Creating account..."
+      : "Sign up"}
+  </button>
 
-        </form>
+</form>
 
       </div>
 

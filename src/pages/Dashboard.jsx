@@ -1,52 +1,104 @@
+import { useEffect, useState } from "react";
+import { ref, get } from "firebase/database";
 import { signOut } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import { auth } from "../firebase/firebase";
+import { auth, database } from "../firebase/firebase";
 import { useAuth } from "../context/AuthContext";
-
+import "./Dashboard.css"
 const Dashboard = () => {
   const { currentUser } = useAuth();
-
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
+  const [profileComplete, setProfileComplete] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+  useEffect(() => {
+    const checkProfile = async () => {
+      if (!currentUser) {
+        return;
+      }
+
+      try {
+        const profileRef = ref(
+          database,
+          `users/${currentUser.uid}/profile`
+        );
+
+        const snapshot = await get(profileRef);
+
+        if (snapshot.exists()) {
+          const profile = snapshot.val();
+
+          const complete =
+            Boolean(profile.fullName) &&
+            Boolean(profile.photoURL);
+
+          setProfileComplete(complete);
+        } else {
+          setProfileComplete(false);
+        }
+
+      } catch (error) {
+        console.error(
+          "Profile check failed:",
+          error
+        );
+
+        setProfileComplete(false);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    checkProfile();
+  }, [currentUser]);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/login");
   };
 
   return (
-    <div>
+    <div className="dashboard">
 
-      <h1>Expense Tracker</h1>
+      <header className="dashboard-header">
 
-      <h2>
-        Welcome 👋
-      </h2>
+        <p>
+          Welcome to Expense Tracker!!!
+        </p>
 
-      <p>
-        Logged in as:
-      </p>
+        {!loadingProfile && !profileComplete && (
+          <div className="profile-warning">
 
-      <p>
-        {currentUser?.email}
-      </p>
+            <span>
+              Your profile is incomplete.
+            </span>
 
-      <p>
-        UID:
-      </p>
+            <Link to="/profile">
+              Complete now
+            </Link>
 
-      <p>
-        {currentUser?.uid}
-      </p>
+          </div>
+        )}
 
-      <button onClick={handleLogout}>
-        Logout
-      </button>
+      </header>
+
+      <main className="dashboard-content">
+
+        <h1>Expense Tracker</h1>
+
+        <p>
+          Welcome,{" "}
+          {currentUser?.displayName ||
+            currentUser?.email}
+        </p>
+
+        <button onClick={handleLogout}>
+          Logout
+        </button>
+
+      </main>
 
     </div>
   );
