@@ -1,29 +1,36 @@
 import { useEffect, useState } from "react";
-import { ref, get } from "firebase/database";
 import { signOut } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
-import EmailVerification from "../components/EmailVerification";
+
 import { auth, database } from "../firebase/firebase";
 import { useAuth } from "../context/AuthContext";
+
+import EmailVerification from "../components/EmailVerification";
+
+import { ref, get } from "firebase/database";
+
 import "./Dashboard.css";
+
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const [profileComplete, setProfileComplete] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+
   const [emailVerified, setEmailVerified] = useState(
-    currentUser?.emailVerified || false,
+    currentUser?.emailVerified || false
   );
 
   useEffect(() => {
     const checkProfile = async () => {
-      if (!currentUser) {
-        return;
-      }
+      if (!currentUser) return;
 
       try {
-        const profileRef = ref(database, `users/${currentUser.uid}/profile`);
+        const profileRef = ref(
+          database,
+          `users/${currentUser.uid}/profile`
+        );
 
         const snapshot = await get(profileRef);
 
@@ -31,16 +38,15 @@ const Dashboard = () => {
           const profile = snapshot.val();
 
           const complete =
-            Boolean(profile.fullName) && Boolean(profile.photoURL);
+            Boolean(profile.fullName) &&
+            Boolean(profile.photoURL);
 
           setProfileComplete(complete);
         } else {
           setProfileComplete(false);
         }
       } catch (error) {
-        console.error("Profile check failed:", error);
-
-        setProfileComplete(false);
+        console.error("Error loading profile:", error);
       } finally {
         setLoadingProfile(false);
       }
@@ -49,39 +55,62 @@ const Dashboard = () => {
     checkProfile();
   }, [currentUser]);
 
+  // Logout
   const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/login");
+    try {
+      await signOut(auth);
+
+      // Clear your manually stored ID token
+      localStorage.removeItem("idToken");
+
+      // Redirect to login
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (
     <div className="dashboard">
+
+      {/* Header */}
       <header className="dashboard-header">
+
         <p>Welcome to Expense Tracker!!!</p>
 
-        {!loadingProfile && !profileComplete && (
-          <div className="profile-warning">
-            <span>Your profile is incomplete.</span>
+        <div className="dashboard-actions">
 
-            <Link to="/profile">Complete now</Link>
-          </div>
-        )}
+          {!loadingProfile && !profileComplete && (
+            <div className="profile-warning">
+              <span>Your profile is incomplete.</span>
+              <Link to="/profile">Complete now</Link>
+            </div>
+          )}
+
+          <button
+            className="logout-button"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
+
+        </div>
+
       </header>
 
+      {/* Email Verification */}
+      {!emailVerified && (
+        <EmailVerification
+          user={currentUser}
+          onVerified={() => setEmailVerified(true)}
+        />
+      )}
+
+      {/* Dashboard content */}
       <main className="dashboard-content">
-        <h1>Expense Tracker</h1>
-
-        <p>Welcome, {currentUser?.displayName || currentUser?.email}</p>
-
-        {!emailVerified && (
-          <EmailVerification
-            user={currentUser}
-            onVerified={() => setEmailVerified(true)}
-          />
-        )}
-
-        <button onClick={handleLogout}>Logout</button>
+        <h2>Dashboard</h2>
       </main>
+
     </div>
   );
 };
