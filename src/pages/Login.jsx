@@ -1,115 +1,96 @@
 import { useState } from "react";
-import {
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import PasswordInput from "../components/PasswordInput";
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { Link, useNavigate } from "react-router-dom";
 
 import { auth } from "../firebase/firebase";
+import PasswordInput from "../components/PasswordInput";
+
+import "./Login.css";
 
 const Login = () => {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (event) => {
-    event.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
 
     setError("");
 
     if (!email || !password) {
-      setError("Please enter email and password");
+      setError("Please enter email and password.");
       return;
     }
 
     try {
-      setLoading(true);
-
-      const userCredential =
-        await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-
-      console.log("Logged in user:", userCredential.user);
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
       navigate("/dashboard");
-
     } catch (error) {
-      console.log(error);
+      console.error(error);
 
-      if (error.code === "auth/invalid-credential") {
-        setError("Invalid email or password");
-      } else if (error.code === "auth/user-not-found") {
-        setError("User not found");
-      } else if (error.code === "auth/wrong-password") {
-        setError("Wrong password");
-      } else {
-        setError("Something went wrong");
+      switch (error.code) {
+        case "auth/invalid-credential":
+          setError("Invalid email or password.");
+          break;
+
+        case "auth/invalid-email":
+          setError("Please enter a valid email address.");
+          break;
+
+        default:
+          setError("Unable to login. Please try again.");
       }
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page">
+    <div className="login-page">
 
-      <div className="signup-card">
+      <div className="login-card">
 
-        <h1>Login</h1>
+        <h2>Login</h2>
 
         <form onSubmit={handleLogin}>
 
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Enter email"
             value={email}
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
+            onChange={(e) => setEmail(e.target.value)}
           />
 
           <PasswordInput
-  placeholder="Password"
-  value={password}
-  onChange={(event) =>
-    setPassword(event.target.value)
-  }
-/>
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-          {error && (
-            <p className="error-message">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
+          {/* Forgot Password */}
+          <Link
+            to="/forgot-password"
+            className="forgot-password"
           >
-            {loading ? "Logging in..." : "Login"}
+            Forgot Password?
+          </Link>
+
+          <button type="submit">
+            Login
           </button>
 
         </form>
 
-      </div>
-
-      <div className="login-box">
-
-        Don't have an account?{" "}
-
-        <Link to="/signup">
-          Sign up
-        </Link>
+        {error && (
+          <p className="error-message">
+            {error}
+          </p>
+        )}
 
       </div>
 
