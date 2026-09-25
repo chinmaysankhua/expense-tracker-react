@@ -1,0 +1,54 @@
+.email-verification {
+  width: 500px;
+  margin: 30px 0;
+  padding: 25px;
+
+  border: 1px solid #ddd;
+  border-radius: 8px;
+
+  background: #f8f9fa;
+}
+
+.verification-content h3 {
+  margin-top: 0;
+}
+
+.verification-content p {
+  margin: 8px 0;
+}
+
+.verification-content strong {
+  display: block;
+  margin: 12px 0;
+}
+
+.verification-content button {
+  margin-top: 15px;
+
+  padding: 10px 20px;
+
+  border: none;
+  border-radius: 5px;
+
+  background: #0799e8;
+  color: white;
+
+  cursor: pointer;
+}
+
+.verification-content button:hover {
+  background: #078bd4;
+}
+
+.verification-content button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.success-message {
+  color: green;
+}
+
+.error-message {
+  color: #e53935;
+}
