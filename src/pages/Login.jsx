@@ -1,8 +1,15 @@
 import { useState } from "react";
+
 import { signInWithEmailAndPassword } from "firebase/auth";
+
 import { Link, useNavigate } from "react-router-dom";
 
+import { useDispatch } from "react-redux";
+
 import { auth } from "../firebase/firebase";
+
+import { login } from "../redux/authSlice";
+
 import PasswordInput from "../components/PasswordInput";
 
 import "./Login.css";
@@ -10,9 +17,15 @@ import "./Login.css";
 const Login = () => {
   const navigate = useNavigate();
 
+  const dispatch = useDispatch();
+
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState("");
+
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,14 +34,32 @@ const Login = () => {
 
     if (!email || !password) {
       setError("Please enter email and password.");
+
       return;
     }
 
     try {
-      await signInWithEmailAndPassword(
+      setLoading(true);
+
+      const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
+      );
+
+      const user = userCredential.user;
+
+      // Get Firebase ID token
+      const idToken = await user.getIdToken();
+
+      // Save auth information in Redux
+      dispatch(
+        login({
+          userId: user.uid,
+          email: user.email,
+          idToken: idToken,
+          emailVerified: user.emailVerified,
+        }),
       );
 
       navigate("/dashboard");
@@ -44,21 +75,24 @@ const Login = () => {
           setError("Please enter a valid email address.");
           break;
 
+        case "auth/user-disabled":
+          setError("This account has been disabled.");
+          break;
+
         default:
           setError("Unable to login. Please try again.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-page">
-
       <div className="login-card">
-
         <h2>Login</h2>
 
         <form onSubmit={handleLogin}>
-
           <input
             type="email"
             placeholder="Enter email"
@@ -72,28 +106,17 @@ const Login = () => {
             onChange={(e) => setPassword(e.target.value)}
           />
 
-          {/* Forgot Password */}
-          <Link
-            to="/forgot-password"
-            className="forgot-password"
-          >
+          <Link to="/forgot-password" className="forgot-password">
             Forgot Password?
           </Link>
 
-          <button type="submit">
-            Login
+          <button type="submit" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </button>
-
         </form>
 
-        {error && (
-          <p className="error-message">
-            {error}
-          </p>
-        )}
-
+        {error && <p className="error-message">{error}</p>}
       </div>
-
     </div>
   );
 };

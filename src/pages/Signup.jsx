@@ -1,130 +1,203 @@
 import { useState } from "react";
+
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { Link, useNavigate } from "react-router-dom";
-import PasswordInput from "../components/PasswordInput";
+
+import { useNavigate, Link } from "react-router-dom";
+
+import { useDispatch } from "react-redux";
+
 import { auth } from "../firebase/firebase";
+
+import { login } from "../redux/authSlice";
+
+import PasswordInput from "../components/PasswordInput";
+
+import "./Signup.css";
 
 const Signup = () => {
   const navigate = useNavigate();
 
+  const dispatch = useDispatch();
+
+  // ==========================================
+  // FORM STATE
+  // ==========================================
+
   const [email, setEmail] = useState("");
+
   const [password, setPassword] = useState("");
+
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [error, setError] = useState("");
+
   const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (event) => {
-    event.preventDefault();
+  // ==========================================
+  // SIGNUP
+  // ==========================================
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
 
     setError("");
 
-    // 1. Check fields
+    // -----------------------------
+    // Validation
+    // -----------------------------
+
     if (!email || !password || !confirmPassword) {
-      setError("Please fill all fields");
+      setError("Please fill in all fields.");
+
       return;
     }
 
-    // 2. Check password match
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Passwords do not match.");
+
       return;
     }
 
-    // 3. Firebase requires at least 6 characters
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Password must be at least 6 characters.");
+
       return;
     }
 
     try {
       setLoading(true);
 
-      // 4. Create Firebase user
+      // -----------------------------
+      // Create Firebase User
+      // -----------------------------
+
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
       );
 
-      console.log("User created:", userCredential.user);
+      const user = userCredential.user;
 
-      // 5. Go to dashboard
+      // -----------------------------
+      // Get Firebase ID Token
+      // -----------------------------
+
+      const idToken = await user.getIdToken();
+
+      // -----------------------------
+      // Store Auth State in Redux
+      // -----------------------------
+
+      dispatch(
+        login({
+          userId: user.uid,
+
+          email: user.email,
+
+          idToken: idToken,
+
+          emailVerified: user.emailVerified,
+        }),
+      );
+
+      // -----------------------------
+      // Redirect
+      // -----------------------------
+
       navigate("/dashboard");
     } catch (error) {
-      console.log(error);
+      console.error("Signup error:", error);
 
-      if (error.code === "auth/email-already-in-use") {
-        setError("This email is already registered");
-      } else if (error.code === "auth/invalid-email") {
-        setError("Please enter a valid email");
-      } else if (error.code === "auth/weak-password") {
-        setError("Password is too weak");
-      } else {
-        setError("Something went wrong. Please try again");
+      // -----------------------------
+      // Firebase Errors
+      // -----------------------------
+
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          setError("An account already exists with this email.");
+
+          break;
+
+        case "auth/invalid-email":
+          setError("Please enter a valid email address.");
+
+          break;
+
+        case "auth/weak-password":
+          setError("Password is too weak.");
+
+          break;
+
+        case "auth/operation-not-allowed":
+          setError("Email/password authentication is not enabled.");
+
+          break;
+
+        case "auth/network-request-failed":
+          setError("Network error. Please check your internet connection.");
+
+          break;
+
+        default:
+          setError("Unable to create account. Please try again.");
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // ==========================================
+  // UI
+  // ==========================================
+
   return (
-    <div className="auth-page">
+    <div className="signup-page">
       <div className="signup-card">
+        <h2>Create Account</h2>
 
-        <h1>SignUp</h1>
+        <form onSubmit={handleSignup}>
+          {/* EMAIL */}
 
-       <form onSubmit={handleSignup}>
+          <input
+            type="email"
+            placeholder="Enter email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-  <input
-    type="email"
-    placeholder="Email"
-    value={email}
-    onChange={(event) =>
-      setEmail(event.target.value)
-    }
-  />
+          {/* PASSWORD */}
 
-  <PasswordInput
-    placeholder="Password"
-    value={password}
-    onChange={(event) =>
-      setPassword(event.target.value)
-    }
-  />
+          <PasswordInput
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-  <PasswordInput
-    placeholder="Confirm Password"
-    value={confirmPassword}
-    onChange={(event) =>
-      setConfirmPassword(event.target.value)
-    }
-  />
+          {/* CONFIRM PASSWORD */}
 
-  {error && (
-    <p className="error-message">
-      {error}
-    </p>
-  )}
+          <PasswordInput
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
 
-  <button
-    type="submit"
-    disabled={loading}
-  >
-    {loading
-      ? "Creating account..."
-      : "Sign up"}
-  </button>
+          {/* SUBMIT */}
 
-</form>
+          <button type="submit" disabled={loading}>
+            {loading ? "Creating Account..." : "Sign Up"}
+          </button>
+        </form>
 
-      </div>
+        {/* ERROR */}
 
-      <div className="login-box">
-        Have an account?{" "}
-        <Link to="/login">
-          Login
-        </Link>
+        {error && <p className="error-message">{error}</p>}
+
+        {/* LOGIN LINK */}
+
+        <p className="login-link">
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
       </div>
     </div>
   );

@@ -1,0 +1,129 @@
+.signup-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f5f7fa;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.signup-card {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  padding: 35px 32px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+.signup-card h2 {
+  margin: 0 0 28px;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 600;
+  color: #222;
+}
+
+.signup-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.signup-card input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  box-sizing: border-box;
+
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.signup-card input:focus {
+  border-color: #149ddd;
+}
+
+.signup-card input::placeholder {
+  color: #888;
+}
+
+/* Important:
+   Only style the actual Sign Up button.
+   Don't style the eye button from PasswordInput.
+*/
+.signup-card form > button {
+  width: 100%;
+  height: 46px;
+
+  margin-top: 5px;
+
+  border: none;
+  border-radius: 6px;
+
+  background: #149ddd;
+  color: white;
+
+  font-size: 16px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.signup-card form > button:hover {
+  background: #1089c2;
+}
+
+.signup-card form > button:disabled {
+  background: #8fcce8;
+  cursor: not-allowed;
+}
+
+.login-link {
+  margin: 22px 0 0;
+  text-align: center;
+
+  font-size: 14px;
+  color: #555;
+}
+
+.login-link a {
+  color: #149ddd;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-link a:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  margin: 15px 0 0;
+  text-align: center;
+
+  color: #d93025;
+  font-size: 14px;
+}
+
+
+/* Mobile */
+@media (max-width: 500px) {
+  .signup-page {
+    padding: 15px;
+  }
+
+  .signup-card {
+    padding: 30px 22px;
+  }
+
+  .signup-card h2 {
+    font-size: 24px;
+  }
+}

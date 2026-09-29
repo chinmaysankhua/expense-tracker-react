@@ -6,37 +6,46 @@ import { ref, get, push, onValue, remove, update } from "firebase/database";
 
 import { Link, useNavigate } from "react-router-dom";
 
+import { useDispatch, useSelector } from "react-redux";
+
 import { auth, database } from "../firebase/firebase";
 
-import { useAuth } from "../context/AuthContext";
+import { logout, updateEmailVerified } from "../redux/authSlice";
+
+import {
+  setExpenses,
+  addExpense,
+  deleteExpense,
+  updateExpense,
+} from "../redux/expenseSlice";
 
 import EmailVerification from "../components/EmailVerification";
 
 import "./Dashboard.css";
 
 const Dashboard = () => {
-  const { currentUser } = useAuth();
-
   const navigate = useNavigate();
 
-  // ==========================================
-  // PROFILE
-  // ==========================================
-
-  const [profileComplete, setProfileComplete] = useState(false);
-
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const dispatch = useDispatch();
 
   // ==========================================
-  // EMAIL VERIFICATION
+  // AUTH REDUX
   // ==========================================
 
-  const [emailVerified, setEmailVerified] = useState(
-    currentUser?.emailVerified || false,
-  );
+  const userId = useSelector((state) => state.auth.userId);
+
+  const email = useSelector((state) => state.auth.email);
+
+  const emailVerified = useSelector((state) => state.auth.emailVerified);
 
   // ==========================================
-  // ADD EXPENSE FORM
+  // EXPENSE REDUX
+  // ==========================================
+
+  const expenses = useSelector((state) => state.expenses.expenses);
+
+  // ==========================================
+  // LOCAL FORM STATE
   // ==========================================
 
   const [amount, setAmount] = useState("");
@@ -45,18 +54,12 @@ const Dashboard = () => {
 
   const [category, setCategory] = useState("");
 
-  const [addingExpense, setAddingExpense] = useState(false);
-
   const [expenseError, setExpenseError] = useState("");
 
-  // ==========================================
-  // EXPENSES
-  // ==========================================
-
-  const [expenses, setExpenses] = useState([]);
+  const [addingExpense, setAddingExpense] = useState(false);
 
   // ==========================================
-  // EDIT EXPENSE
+  // EDIT STATE
   // ==========================================
 
   const [editingExpenseId, setEditingExpenseId] = useState(null);
@@ -72,27 +75,43 @@ const Dashboard = () => {
   const [updatingExpense, setUpdatingExpense] = useState(false);
 
   // ==========================================
-  // CHECK PROFILE
+  // PROFILE STATE
+  // ==========================================
+
+  const [profileComplete, setProfileComplete] = useState(false);
+
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  // ==========================================
+  // TOTAL EXPENSE
+  // ==========================================
+
+  const totalExpense = expenses.reduce(
+    (total, expense) => total + Number(expense.amount),
+    0,
+  );
+
+  // ==========================================
+  // PROFILE
   // ==========================================
 
   useEffect(() => {
     const checkProfile = async () => {
-      if (!currentUser) {
+      if (!userId) {
         return;
       }
 
       try {
-        const profileRef = ref(database, `users/${currentUser.uid}/profile`);
+        const profileRef = ref(database, `users/${userId}/profile`);
 
         const snapshot = await get(profileRef);
 
         if (snapshot.exists()) {
           const profile = snapshot.val();
 
-          const complete =
-            Boolean(profile.fullName) && Boolean(profile.photoURL);
-
-          setProfileComplete(complete);
+          setProfileComplete(
+            Boolean(profile.fullName) && Boolean(profile.photoURL),
+          );
         } else {
           setProfileComplete(false);
         }
@@ -104,48 +123,40 @@ const Dashboard = () => {
     };
 
     checkProfile();
-  }, [currentUser]);
+  }, [userId]);
 
   // ==========================================
-  // LOAD EXPENSES
+  // LOAD EXPENSES INTO REDUX
   // ==========================================
 
   useEffect(() => {
-    if (!currentUser) {
+    if (!userId) {
       return;
     }
 
-    const expensesRef = ref(database, `users/${currentUser.uid}/expenses`);
+    const expensesRef = ref(database, `users/${userId}/expenses`);
 
-    const unsubscribe = onValue(
-      expensesRef,
-      (snapshot) => {
-        const data = snapshot.val();
+    const unsubscribe = onValue(expensesRef, (snapshot) => {
+      const data = snapshot.val();
 
-        if (!data) {
-          setExpenses([]);
+      if (!data) {
+        dispatch(setExpenses([]));
 
-          return;
-        }
+        return;
+      }
 
-        const expensesArray = Object.entries(data).map(([id, expense]) => ({
+      const expensesArray = Object.entries(data)
+        .map(([id, expense]) => ({
           id,
           ...expense,
-        }));
+        }))
+        .sort((a, b) => b.createdAt - a.createdAt);
 
-        // Newest first
-        expensesArray.sort((a, b) => b.createdAt - a.createdAt);
+      dispatch(setExpenses(expensesArray));
+    });
 
-        setExpenses(expensesArray);
-      },
-      (error) => {
-        console.error("Error loading expenses:", error);
-      },
-    );
-
-    // Cleanup listener
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [userId, dispatch]);
 
   // ==========================================
   // ADD EXPENSE
@@ -155,8 +166,6 @@ const Dashboard = () => {
     e.preventDefault();
 
     setExpenseError("");
-
-    // Validation
 
     if (!amount || !description.trim() || !category) {
       setExpenseError("Please fill in all expense fields.");
@@ -173,9 +182,9 @@ const Dashboard = () => {
     try {
       setAddingExpense(true);
 
-      const expensesRef = ref(database, `users/${currentUser.uid}/expenses`);
+      const expensesRef = ref(database, `users/${userId}/expenses`);
 
-      await push(expensesRef, {
+      const newExpense = {
         amount: Number(amount),
 
         description: description.trim(),
@@ -183,9 +192,19 @@ const Dashboard = () => {
         category,
 
         createdAt: Date.now(),
-      });
+      };
 
-      // Clear form
+      const newExpenseRef = await push(expensesRef, newExpense);
+
+      // Update Redux immediately
+
+      dispatch(
+        addExpense({
+          id: newExpenseRef.key,
+
+          ...newExpense,
+        }),
+      );
 
       setAmount("");
 
@@ -195,7 +214,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error adding expense:", error);
 
-      setExpenseError("Unable to add expense. Please try again.");
+      setExpenseError("Unable to add expense.");
     } finally {
       setAddingExpense(false);
     }
@@ -207,12 +226,11 @@ const Dashboard = () => {
 
   const handleDeleteExpense = async (expenseId) => {
     try {
-      const expenseRef = ref(
-        database,
-        `users/${currentUser.uid}/expenses/${expenseId}`,
-      );
+      const expenseRef = ref(database, `users/${userId}/expenses/${expenseId}`);
 
       await remove(expenseRef);
+
+      dispatch(deleteExpense(expenseId));
 
       console.log("Expense successfuly deleted");
     } catch (error) {
@@ -221,7 +239,7 @@ const Dashboard = () => {
   };
 
   // ==========================================
-  // START EDITING
+  // EDIT
   // ==========================================
 
   const handleEditExpense = (expense) => {
@@ -237,7 +255,7 @@ const Dashboard = () => {
   };
 
   // ==========================================
-  // UPDATE EXPENSE
+  // UPDATE
   // ==========================================
 
   const handleUpdateExpense = async (e) => {
@@ -245,16 +263,8 @@ const Dashboard = () => {
 
     setEditError("");
 
-    // Validation
-
     if (!editAmount || !editDescription.trim() || !editCategory) {
       setEditError("Please fill in all expense fields.");
-
-      return;
-    }
-
-    if (Number(editAmount) <= 0) {
-      setEditError("Amount must be greater than 0.");
 
       return;
     }
@@ -264,22 +274,30 @@ const Dashboard = () => {
 
       const expenseRef = ref(
         database,
-        `users/${currentUser.uid}/expenses/${editingExpenseId}`,
+        `users/${userId}/expenses/${editingExpenseId}`,
       );
 
-      await update(expenseRef, {
+      const updatedExpense = {
         amount: Number(editAmount),
 
         description: editDescription.trim(),
 
         category: editCategory,
-      });
+      };
 
-      // Exit edit mode
+      await update(expenseRef, updatedExpense);
+
+      dispatch(
+        updateExpense({
+          id: editingExpenseId,
+
+          ...expenses.find((expense) => expense.id === editingExpenseId),
+
+          ...updatedExpense,
+        }),
+      );
 
       setEditingExpenseId(null);
-
-      // Clear edit form
 
       setEditAmount("");
 
@@ -291,26 +309,10 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error updating expense:", error);
 
-      setEditError("Unable to update expense. Please try again.");
+      setEditError("Unable to update expense.");
     } finally {
       setUpdatingExpense(false);
     }
-  };
-
-  // ==========================================
-  // CANCEL EDIT
-  // ==========================================
-
-  const handleCancelEdit = () => {
-    setEditingExpenseId(null);
-
-    setEditAmount("");
-
-    setEditDescription("");
-
-    setEditCategory("");
-
-    setEditError("");
   };
 
   // ==========================================
@@ -321,7 +323,8 @@ const Dashboard = () => {
     try {
       await signOut(auth);
 
-      // Remove manually stored token
+      dispatch(logout());
+
       localStorage.removeItem("idToken");
 
       navigate("/login", {
@@ -338,9 +341,7 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* =====================================
-          HEADER
-      ====================================== */}
+      {/* HEADER */}
 
       <header className="dashboard-header">
         <p>Welcome to Expense Tracker!!!</p>
@@ -360,31 +361,42 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* =====================================
-          EMAIL VERIFICATION
-      ====================================== */}
+      {/* EMAIL VERIFICATION */}
 
       {!emailVerified && (
         <EmailVerification
-          user={currentUser}
-          onVerified={() => setEmailVerified(true)}
+          user={auth.currentUser}
+          onVerified={() => dispatch(updateEmailVerified(true))}
         />
       )}
 
-      {/* =====================================
-          MAIN CONTENT
-      ====================================== */}
+      {/* CONTENT */}
 
       <main className="dashboard-content">
         <h2>Daily Expenses</h2>
 
-        {/* ===================================
-            ADD EXPENSE FORM
-        ==================================== */}
+        {/* TOTAL */}
+
+        <div className="expense-summary">
+          <h3>Total Expenses</h3>
+
+          <p>₹{totalExpense}</p>
+        </div>
+
+        {/* PREMIUM */}
+
+        {totalExpense > 10000 && (
+          <button
+            className="premium-button"
+            onClick={() => console.log("Premium activated")}
+          >
+            Activate Premium
+          </button>
+        )}
+
+        {/* ADD FORM */}
 
         <form className="expense-form" onSubmit={handleAddExpense}>
-          {/* Amount */}
-
           <div className="expense-field">
             <label>Amount</label>
 
@@ -398,8 +410,6 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Description */}
-
           <div className="expense-field">
             <label>Description</label>
 
@@ -410,8 +420,6 @@ const Dashboard = () => {
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-
-          {/* Category */}
 
           <div className="expense-field">
             <label>Category</label>
@@ -438,8 +446,6 @@ const Dashboard = () => {
             </select>
           </div>
 
-          {/* Add Button */}
-
           <button
             type="submit"
             className="add-expense-button"
@@ -449,21 +455,15 @@ const Dashboard = () => {
           </button>
         </form>
 
-        {/* Add Expense Error */}
-
         {expenseError && <p className="expense-error">{expenseError}</p>}
 
-        {/* ===================================
-            EDIT EXPENSE FORM
-        ==================================== */}
+        {/* EDIT FORM */}
 
         {editingExpenseId && (
           <div className="edit-expense-container">
             <h3>Edit Expense</h3>
 
             <form className="edit-expense-form" onSubmit={handleUpdateExpense}>
-              {/* Edit Amount */}
-
               <div className="expense-field">
                 <label>Amount</label>
 
@@ -471,12 +471,8 @@ const Dashboard = () => {
                   type="number"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  min="0"
-                  step="0.01"
                 />
               </div>
-
-              {/* Edit Description */}
 
               <div className="expense-field">
                 <label>Description</label>
@@ -487,8 +483,6 @@ const Dashboard = () => {
                   onChange={(e) => setEditDescription(e.target.value)}
                 />
               </div>
-
-              {/* Edit Category */}
 
               <div className="expense-field">
                 <label>Category</label>
@@ -515,8 +509,6 @@ const Dashboard = () => {
                 </select>
               </div>
 
-              {/* Submit */}
-
               <button
                 type="submit"
                 className="submit-edit-button"
@@ -525,26 +517,20 @@ const Dashboard = () => {
                 {updatingExpense ? "Updating..." : "Submit"}
               </button>
 
-              {/* Cancel */}
-
               <button
                 type="button"
                 className="cancel-edit-button"
-                onClick={handleCancelEdit}
+                onClick={() => setEditingExpenseId(null)}
               >
                 Cancel
               </button>
             </form>
 
-            {/* Edit Error */}
-
             {editError && <p className="expense-error">{editError}</p>}
           </div>
         )}
 
-        {/* ===================================
-            EXPENSE LIST
-        ==================================== */}
+        {/* EXPENSE LIST */}
 
         <section className="expense-list">
           <h3>Your Expenses</h3>
@@ -555,15 +541,11 @@ const Dashboard = () => {
             <div className="expenses-container">
               {expenses.map((expense) => (
                 <div className="expense-card" key={expense.id}>
-                  {/* Expense Details */}
-
                   <div className="expense-details">
                     <h4>₹{expense.amount}</h4>
 
                     <p>{expense.description}</p>
                   </div>
-
-                  {/* Right Side */}
 
                   <div className="expense-right">
                     <span className="expense-category">{expense.category}</span>
@@ -571,8 +553,6 @@ const Dashboard = () => {
                     <small>
                       {new Date(expense.createdAt).toLocaleString()}
                     </small>
-
-                    {/* Buttons */}
 
                     <div className="expense-actions">
                       <button
