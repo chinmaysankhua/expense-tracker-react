@@ -6,6 +6,9 @@ const initialState = {
   email: null,
   idToken: null,
   emailVerified: false,
+
+  // Firebase is checking the existing session
+  authLoading: true,
 };
 
 const authSlice = createSlice({
@@ -20,6 +23,8 @@ const authSlice = createSlice({
       state.email = action.payload.email;
       state.idToken = action.payload.idToken;
       state.emailVerified = action.payload.emailVerified;
+
+      state.authLoading = false;
     },
 
     logout: (state) => {
@@ -28,6 +33,8 @@ const authSlice = createSlice({
       state.email = null;
       state.idToken = null;
       state.emailVerified = false;
+
+      state.authLoading = false;
     },
 
     updateToken: (state, action) => {
@@ -37,6 +44,10 @@ const authSlice = createSlice({
     updateEmailVerified: (state, action) => {
       state.emailVerified = action.payload;
     },
+
+    setAuthLoading: (state, action) => {
+      state.authLoading = action.payload;
+    },
   },
 });
 
@@ -45,6 +56,7 @@ export const {
   logout,
   updateToken,
   updateEmailVerified,
+  setAuthLoading,
 } = authSlice.actions;
 
 export default authSlice.reducer;
