@@ -5,20 +5,24 @@ import { describe, test, expect, vi } from "vitest";
 
 import ForgotPassword from "./ForgotPassword";
 
-// Mock Firebase
+import { sendPasswordResetEmail } from "firebase/auth";
+
+// Mock Firebase Auth
 vi.mock("firebase/auth", () => ({
   sendPasswordResetEmail: vi.fn(),
 }));
 
+// Mock Firebase configuration
 vi.mock("../firebase/firebase", () => ({
   auth: {},
 }));
 
 describe("Forgot Password - userEvent tests", () => {
 
-  // 10
-  test("10. user clicks Forgot Password", async () => {
+  test("10. user submits Forgot Password form", async () => {
     const user = userEvent.setup();
+
+    sendPasswordResetEmail.mockResolvedValue(undefined);
 
     render(
       <MemoryRouter>
@@ -36,7 +40,10 @@ describe("Forgot Password - userEvent tests", () => {
 
     await user.click(resetButton);
 
-    expect(resetButton).toBeInTheDocument();
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith(
+      {},
+      "test@example.com"
+    );
   });
 
 });

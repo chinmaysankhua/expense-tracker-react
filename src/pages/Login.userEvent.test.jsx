@@ -8,11 +8,14 @@ import { describe, test, expect, vi } from "vitest";
 import Login from "./Login";
 import authReducer from "../redux/authSlice";
 
-// Mock Firebase
+import { signInWithEmailAndPassword } from "firebase/auth";
+
+// Mock Firebase Auth
 vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: vi.fn(),
 }));
 
+// Mock Firebase configuration
 vi.mock("../firebase/firebase", () => ({
   auth: {},
 }));
@@ -35,7 +38,6 @@ const renderLogin = () => {
 
 describe("Login - userEvent tests", () => {
 
-  // 7
   test("7. user types email on Login", async () => {
     const user = userEvent.setup();
 
@@ -49,7 +51,6 @@ describe("Login - userEvent tests", () => {
   });
 
 
-  // 8
   test("8. user types password on Login", async () => {
     const user = userEvent.setup();
 
@@ -64,9 +65,18 @@ describe("Login - userEvent tests", () => {
   });
 
 
-  // 9
-  test("9. user clicks Login", async () => {
+  test("9. user clicks Login with valid data", async () => {
     const user = userEvent.setup();
+
+    // Mock successful Firebase login
+    signInWithEmailAndPassword.mockResolvedValue({
+      user: {
+        uid: "test-user-id",
+        email: "test@example.com",
+        emailVerified: true,
+        getIdToken: vi.fn().mockResolvedValue("test-token"),
+      },
+    });
 
     renderLogin();
 
@@ -83,9 +93,11 @@ describe("Login - userEvent tests", () => {
 
     await user.click(loginButton);
 
-    // Firebase is mocked, so verify the button
-    // remains available after the interaction.
-    expect(loginButton).toBeInTheDocument();
+    expect(signInWithEmailAndPassword).toHaveBeenCalledWith(
+      {},
+      "test@example.com",
+      "password123"
+    );
   });
 
 });

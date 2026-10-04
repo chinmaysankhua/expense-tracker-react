@@ -8,11 +8,14 @@ import { describe, test, expect, vi } from "vitest";
 import Signup from "./Signup";
 import authReducer from "../redux/authSlice";
 
-// Mock Firebase
+import { createUserWithEmailAndPassword } from "firebase/auth";
+
+// Mock Firebase Auth
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: vi.fn(),
 }));
 
+// Mock Firebase configuration
 vi.mock("../firebase/firebase", () => ({
   auth: {},
 }));
@@ -35,7 +38,6 @@ const renderSignup = () => {
 
 describe("Signup - userEvent tests", () => {
 
-  // 1
   test("1. user types email on Signup", async () => {
     const user = userEvent.setup();
 
@@ -49,7 +51,6 @@ describe("Signup - userEvent tests", () => {
   });
 
 
-  // 2
   test("2. user types password on Signup", async () => {
     const user = userEvent.setup();
 
@@ -64,7 +65,6 @@ describe("Signup - userEvent tests", () => {
   });
 
 
-  // 3
   test("3. user types confirm password", async () => {
     const user = userEvent.setup();
 
@@ -79,9 +79,18 @@ describe("Signup - userEvent tests", () => {
   });
 
 
-  // 4
-  test("4. user clicks Sign Up", async () => {
+  test("4. user clicks Sign Up with valid data", async () => {
     const user = userEvent.setup();
+
+    // Mock successful Firebase signup
+    createUserWithEmailAndPassword.mockResolvedValue({
+      user: {
+        uid: "test-user-id",
+        email: "test@example.com",
+        emailVerified: false,
+        getIdToken: vi.fn().mockResolvedValue("test-token"),
+      },
+    });
 
     renderSignup();
 
@@ -101,14 +110,15 @@ describe("Signup - userEvent tests", () => {
 
     await user.click(signupButton);
 
-    // Firebase is mocked, so we only verify
-    // that the button can be clicked successfully.
-    expect(signupButton).toBeInTheDocument();
+    expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+      {},
+      "test@example.com",
+      "password123"
+    );
   });
 
 
-  // 5
-  test("5. user gets validation for empty fields", async () => {
+  test("5. empty fields show validation error", async () => {
     const user = userEvent.setup();
 
     renderSignup();
@@ -122,11 +132,13 @@ describe("Signup - userEvent tests", () => {
     expect(
       screen.getByText("Please fill in all fields.")
     ).toBeInTheDocument();
+
+    // Firebase should not be called
+    expect(createUserWithEmailAndPassword).not.toHaveBeenCalled();
   });
 
 
-  // 6
-  test("6. user gets validation for mismatched passwords", async () => {
+  test("6. mismatched passwords show validation error", async () => {
     const user = userEvent.setup();
 
     renderSignup();
@@ -150,6 +162,9 @@ describe("Signup - userEvent tests", () => {
     expect(
       screen.getByText("Passwords do not match.")
     ).toBeInTheDocument();
+
+    // Firebase should not be called
+    expect(createUserWithEmailAndPassword).not.toHaveBeenCalled();
   });
 
 });
